@@ -1,0 +1,108 @@
+#include <stdint.h>
+
+// Define the pins where the LEDs are connected
+const int ledPins[3] = {9, 10, 11}; // LEDs connected to digital pins 9, 10, and 11 (PWM pins)
+
+// Structure to represent the settings of a single LED
+typedef struct {
+    uint8_t state;       // ON/OFF state (1 for ON, 0 for OFF)
+    uint8_t brightness;  // Brightness level (0-255)
+    uint32_t color;      // RGB color value (24-bit encoded, for future use)
+} LEDSettings;
+
+// Structure to represent a group of LEDs
+typedef struct {
+    LEDSettings leds[3]; // Array of individual LED settings (3 LEDs)
+    uint8_t groupState;  // Collective ON/OFF state for the group (1 for all ON, 0 for all OFF)
+    uint8_t groupBrightness; // Collective brightness adjustment for the group (0-255)
+} LEDGroup;
+
+// Function to initialize the LED group with default values
+void initLEDGroup(LEDGroup *group) {
+    for (int i = 0; i < 3; i++) {
+        group->leds[i].state = 0;          // All LEDs OFF
+        group->leds[i].brightness = 0;     // Minimum brightness
+        group->leds[i].color = 0x000000;   // No color (Black)
+    }
+    group->groupState = 0;                 // Group OFF
+    group->groupBrightness = 0;            // Minimum brightness for group
+}
+
+// Function to update the LED group settings
+void updateLEDGroupSettings(LEDGroup *group, uint8_t groupState, uint8_t groupBrightness, 
+                            uint8_t states[], uint8_t brightness[], uint32_t colors[]) {
+    group->groupState = groupState;        // Update the group's ON/OFF state
+    group->groupBrightness = groupBrightness; // Update the group's brightness
+    
+    // Update individual LED settings
+    for (int i = 0; i < 3; i++) {
+        group->leds[i].state = states[i];
+        group->leds[i].brightness = brightness[i];
+        group->leds[i].color = colors[i];
+        
+        // Control the physical LEDs connected to pins 9, 10, and 11
+        if (group->leds[i].state) {
+            analogWrite(ledPins[i], group->leds[i].brightness); // Set brightness
+        } else {
+            digitalWrite(ledPins[i], LOW); // Turn LED OFF
+        }
+    }
+}
+
+// Function to display the LED group status (Optional in Arduino, uses Serial Monitor)
+void displayLEDGroupStatus(const LEDGroup *group) {
+    for (int i = 0; i < 3; i++) {
+        Serial.print("LED ");
+        Serial.print(i+1);
+        Serial.println(" Status:");
+        Serial.print("State: ");
+        Serial.println(group->leds[i].state ? "ON" : "OFF");
+        Serial.print("Brightness: ");
+        Serial.println(group->leds[i].brightness);
+        Serial.print("Color: 0x");
+        Serial.println(group->leds[i].color, HEX);
+    }
+    
+    Serial.println("Group LED Status:");
+    Serial.print("Group State: ");
+    Serial.println(group->groupState ? "All ON" : "All OFF");
+    Serial.print("Group Brightness: ");
+    Serial.println(group->groupBrightness);
+}
+
+void setup() {
+    // Set the LED pins as output
+    for (int i = 0; i < 3; i++) {
+        pinMode(ledPins[i], OUTPUT);
+    }
+    
+    // Start the Serial communication for debugging
+    Serial.begin(9600);
+    
+    // Declare an LEDGroup structure
+    LEDGroup myLEDGroup;
+    
+    // Initialize the LED group with default values
+    initLEDGroup(&myLEDGroup);
+    
+    // Display initial LED group status (using Serial Monitor)
+    displayLEDGroupStatus(&myLEDGroup);
+}
+
+void loop() {
+    // Update the LED group settings continuously
+    LEDGroup myLEDGroup;
+    
+    // Example states, brightness, and colors for 3 LEDs
+    uint8_t states[3] = {1, 1, 1};           // All LEDs ON
+    uint8_t brightness[3] = {random(0, 255), random(0, 255), random(0, 255)}; // Random brightness
+    uint32_t colors[3] = {0xFF0000, 0x00FF00, 0x0000FF}; // Colors: Red, Green, Blue
+    
+    // Update the LED group with random brightness levels every second
+    updateLEDGroupSettings(&myLEDGroup, 1, 128, states, brightness, colors);
+    
+    // Display the updated LED group status
+    displayLEDGroupStatus(&myLEDGroup);
+    
+    delay(1000); // Wait for 1 second before updating again
+}
